@@ -153,17 +153,29 @@ export default function ConnectWhatsAppPage() {
 
   async function handleRefreshQr() {
     setRefreshing(true);
-    setQrCode(null);
-    setQrStatus("INITIALIZING");
     setQrTimer(60);
     try {
       const instId = instance?.id || "primary";
-      await ApiClient.request(`/api/v1/whatsapp/instances/${instId}/restart`, { method: "POST" }).catch(() => {});
+      const res: any = await ApiClient.request(`/api/v1/whatsapp/instances/${instId}/qr`).catch(() => null);
+      if (res) {
+        if (res.status === "CONNECTED") {
+          setQrStatus("CONNECTED");
+          setQrCode(null);
+          const targetInst = { id: res.instance_id || instId, instance_name: res.instance_name || "primary", status: "CONNECTED", phone_number: res.phone } as any;
+          setInstance(targetInst);
+          loadChatData(targetInst);
+          return;
+        }
+        if (res.qr_code && res.qr_code.startsWith("data:image")) {
+          setQrCode(res.qr_code);
+          setQrStatus("QR_READY");
+        }
+      }
       startQrPolling(instId);
     } catch (err) {
       console.error("Failed to refresh QR:", err);
     } finally {
-      setTimeout(() => setRefreshing(false), 1000);
+      setTimeout(() => setRefreshing(false), 400);
     }
   }
 
