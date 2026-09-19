@@ -124,34 +124,30 @@ export default function ConnectWhatsAppPage() {
   async function initWhatsApp() {
     try {
       await ApiClient.ensureAuth();
-      const instances = await ApiClient.request<WhatsAppInstance[]>("/api/v1/whatsapp/instances").catch(() => []);
-      
-      let primary = instances && instances.length > 0 ? instances[0] : null;
-
-      if (!primary) {
-        primary = await ApiClient.request<WhatsAppInstance>("/api/v1/whatsapp/instances", {
-          method: "POST",
-          body: JSON.stringify({ instance_name: "primary", is_default: true }),
-        }).catch(() => null);
-      }
-
-      if (primary) {
-        setInstance(primary);
-        if (primary.status === "CONNECTED") {
+      // Fast single-roundtrip QR check
+      const qrRes: any = await ApiClient.request("/api/v1/whatsapp/instances/primary/qr").catch(() => null);
+      if (qrRes) {
+        if (qrRes.status === "CONNECTED") {
           setQrStatus("CONNECTED");
           setQrCode(null);
-          loadChatData(primary);
+          const targetInst = { id: qrRes.instance_id, instance_name: qrRes.instance_name || "primary", status: "CONNECTED", phone_number: qrRes.phone } as any;
+          setInstance(targetInst);
+          loadChatData(targetInst);
           return;
         }
-        setQrStatus("INITIALIZING");
-        setQrCode(null);
-        startQrPolling(primary.id);
-      } else {
-        setTimeout(() => initWhatsApp(), 2000);
+        if (qrRes.qr_code && qrRes.qr_code.startsWith("data:image")) {
+          setQrCode(qrRes.qr_code);
+          setQrStatus("QR_READY");
+        }
+        const instId = qrRes.instance_id || "primary";
+        setInstance({ id: instId, instance_name: "primary", status: qrRes.status } as any);
+        startQrPolling(instId);
+        return;
       }
+      startQrPolling("primary");
     } catch (err) {
       console.error("Failed to initialize WhatsApp connection:", err);
-      setTimeout(() => initWhatsApp(), 3000);
+      startQrPolling("primary");
     }
   }
 
@@ -161,12 +157,9 @@ export default function ConnectWhatsAppPage() {
     setQrStatus("INITIALIZING");
     setQrTimer(60);
     try {
-      if (instance) {
-        await ApiClient.request(`/api/v1/whatsapp/instances/${instance.id}/restart`, { method: "POST" }).catch(() => {});
-        startQrPolling(instance.id);
-      } else {
-        await initWhatsApp();
-      }
+      const instId = instance?.id || "primary";
+      await ApiClient.request(`/api/v1/whatsapp/instances/${instId}/restart`, { method: "POST" }).catch(() => {});
+      startQrPolling(instId);
     } catch (err) {
       console.error("Failed to refresh QR:", err);
     } finally {
@@ -191,11 +184,9 @@ export default function ConnectWhatsAppPage() {
             setQrStatus("CONNECTED");
             setQrCode(null);
             if (pollRef.current) clearInterval(pollRef.current);
-            const instances = await ApiClient.request<WhatsAppInstance[]>("/api/v1/whatsapp/instances").catch(() => []);
-            if (instances && instances[0]) {
-              setInstance(instances[0]);
-              loadChatData(instances[0]);
-            }
+            const targetInst = { id: res.instance_id || instanceId, instance_name: res.instance_name || "primary", status: "CONNECTED", phone_number: res.phone } as any;
+            setInstance(targetInst);
+            loadChatData(targetInst);
             return;
           }
 
@@ -217,7 +208,7 @@ export default function ConnectWhatsAppPage() {
     };
 
     poll();
-    pollRef.current = setInterval(poll, 2500);
+    pollRef.current = setInterval(poll, 1500);
   }
 
   // Sync all chats from connected WhatsApp session
