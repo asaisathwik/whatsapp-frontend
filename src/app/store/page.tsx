@@ -18,10 +18,8 @@ import {
   Eye,
   Download,
 } from "lucide-react";
-import { ApiClient } from "@/lib/api";
+import { ApiClient, getApiBase } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function StorePage() {
   const router = useRouter();
@@ -151,7 +149,7 @@ export default function StorePage() {
 
   function handleUseInBroadcast(item: any, type: "text" | "image" | "document") {
     const itemName = item.filename || item.name || item.original_filename || "Asset";
-    const fullUrl = item.public_url ? (item.public_url.startsWith("http") ? item.public_url : `${API_BASE}${item.public_url}`) : undefined;
+    const fullUrl = item.public_url ? (item.public_url.startsWith("http") ? item.public_url : `${getApiBase()}${item.public_url}`) : undefined;
     
     sessionStorage.setItem("selected_store_item", JSON.stringify({
       type,
@@ -165,7 +163,7 @@ export default function StorePage() {
 
   const getFullMediaUrl = (url?: string) => {
     if (!url) return "";
-    return url.startsWith("http") ? url : `${API_BASE}${url}`;
+    return url.startsWith("http") ? url : `${getApiBase()}${url}`;
   };
 
   const filteredTemplates = activeTab === "all" || activeTab === "text" ? templates : [];

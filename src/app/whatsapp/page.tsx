@@ -36,10 +36,8 @@ import {
   ArrowRight,
   Download,
 } from "lucide-react";
-import { ApiClient } from "@/lib/api";
+import { ApiClient, getApiBase } from "@/lib/api";
 import { WhatsAppInstance } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function ConnectWhatsAppPage() {
   const [instance, setInstance] = useState<WhatsAppInstance | null>(null);
@@ -149,13 +147,13 @@ export default function ConnectWhatsAppPage() {
           setQrCode(primary.qr_code);
           setQrStatus("QR_READY");
         }
-        startQrPolling(primary.id, primary.instance_name);
+        startQrPolling(primary.id);
       } else {
-        startQrPolling("primary", "primary");
+        setTimeout(() => initWhatsApp(), 2000);
       }
     } catch (err) {
       console.error("Failed to initialize WhatsApp connection:", err);
-      startQrPolling("primary", "primary");
+      setTimeout(() => initWhatsApp(), 3000);
     }
   }
 
@@ -167,10 +165,10 @@ export default function ConnectWhatsAppPage() {
     try {
       if (instance) {
         await ApiClient.request(`/api/v1/whatsapp/instances/${instance.id}/restart`, { method: "POST" }).catch(() => {});
+        startQrPolling(instance.id);
       } else {
-        await fetch("http://127.0.0.1:8001/sessions/primary/restart", { method: "POST" }).catch(() => {});
+        await initWhatsApp();
       }
-      startQrPolling(instance?.id || "primary", instance?.instance_name || "primary");
     } catch (err) {
       console.error("Failed to refresh QR:", err);
     } finally {
@@ -178,7 +176,7 @@ export default function ConnectWhatsAppPage() {
     }
   }
 
-  function startQrPolling(instanceId: string, instanceName = "primary") {
+  function startQrPolling(instanceId: string) {
     if (pollRef.current) clearInterval(pollRef.current);
 
     let attempts = 0;
@@ -187,24 +185,8 @@ export default function ConnectWhatsAppPage() {
     const poll = async () => {
       attempts++;
       try {
-        let res: any = null;
-        if (instanceId && instanceId !== "primary") {
-          res = await ApiClient.request(`/api/v1/whatsapp/instances/${instanceId}/qr`).catch(() => null);
-        }
-
-        if (!res || !res.qr_code) {
-          try {
-            const bridgeRes = await fetch(`http://127.0.0.1:8001/sessions/${instanceName}/qr`);
-            if (bridgeRes.ok) {
-              const bData = await bridgeRes.json();
-              if (bData.qr_code) {
-                res = { qr_code: bData.qr_code, status: bData.status || "QR_READY" };
-              } else if (bData.status === "CONNECTED") {
-                res = { status: "CONNECTED", phone: bData.phone };
-              }
-            }
-          } catch {}
-        }
+        if (!instanceId) return;
+        const res: any = await ApiClient.request(`/api/v1/whatsapp/instances/${instanceId}/qr`).catch(() => null);
 
         if (res) {
           if (res.status === "CONNECTED") {
@@ -425,7 +407,6 @@ export default function ConnectWhatsAppPage() {
     setDisconnecting(true);
     try {
       await ApiClient.request(`/api/v1/whatsapp/instances/${instance.id}/disconnect`, { method: "POST" }).catch(() => {});
-      await fetch(`http://127.0.0.1:8001/sessions/${instance.instance_name}`, { method: "DELETE" }).catch(() => {});
       setQrStatus("INITIALIZING");
       setQrCode(null);
       setSelectedContact(null);
@@ -887,7 +868,7 @@ export default function ConnectWhatsAppPage() {
                   ) : (
                     messages.map((m, idx) => {
                       const isOutbound = m.direction === "OUTBOUND";
-                      const mediaUrl = m.media_url ? (m.media_url.startsWith("http") ? m.media_url : `${API_BASE}${m.media_url}`) : null;
+                      const mediaUrl = m.media_url ? (m.media_url.startsWith("http") ? m.media_url : `${getApiBase()}${m.media_url}`) : null;
                       const isImg = m.message_type === "IMAGE" || (mediaUrl && (mediaUrl.endsWith(".png") || mediaUrl.endsWith(".jpg") || mediaUrl.endsWith(".jpeg") || mediaUrl.endsWith(".webp")));
                       const isDoc = m.message_type === "DOCUMENT" || (mediaUrl && !isImg);
 

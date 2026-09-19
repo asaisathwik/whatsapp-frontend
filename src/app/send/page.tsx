@@ -20,10 +20,8 @@ import {
   Sparkles,
   RefreshCw,
 } from "lucide-react";
-import { ApiClient } from "@/lib/api";
+import { ApiClient, getApiBase } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function SendMessagesPage() {
   const router = useRouter();
@@ -128,7 +126,7 @@ export default function SendMessagesPage() {
 
   const getFullMediaUrl = (url?: string) => {
     if (!url) return "";
-    return url.startsWith("http") ? url : `${API_BASE}${url}`;
+    return url.startsWith("http") ? url : `${getApiBase()}${url}`;
   };
 
   // Handle CSV/Excel File Parse

@@ -1,4 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const getApiBase = (): string => {
+  const url = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  return url.replace(/\/+$/, "");
+};
 
 export class ApiClient {
   private static getToken(): string | null {
@@ -48,7 +51,7 @@ export class ApiClient {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${getApiBase()}${endpoint}`;
     const res = await fetch(url, {
       method: "POST",
       headers,
@@ -80,9 +83,9 @@ export class ApiClient {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s safety timeout
+    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s safety timeout
 
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${getApiBase()}${endpoint}`;
     try {
       const res = await fetch(url, {
         ...options,
@@ -117,11 +120,12 @@ export class ApiClient {
     }
   }
 
-  // Quick auto-login or register for local instant preview
+  // Quick auto-login or register for instant demo preview
   public static async ensureAuth(force = false): Promise<void> {
     if (!force && this.getAuth()) return;
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+      const base = getApiBase();
+      const res = await fetch(`${base}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,7 +141,7 @@ export class ApiClient {
       }
 
       // If login failed, register
-      const regRes = await fetch(`${API_BASE}/api/v1/auth/register`, {
+      const regRes = await fetch(`${base}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -153,7 +157,7 @@ export class ApiClient {
         this.setAuth(data.access_token, data.user, data.organization);
       }
     } catch (e) {
-      console.error("Auto auth setup failed:", e);
+      console.warn("Auto auth setup notice:", e);
     }
   }
 }

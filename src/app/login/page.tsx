@@ -14,9 +14,7 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
-import { ApiClient } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+import { ApiClient, getApiBase } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +35,7 @@ export default function LoginPage() {
 
     try {
       if (mode === "login") {
-        const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+        const res = await fetch(`${getApiBase()}/api/v1/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.trim(), password }),
@@ -52,7 +50,7 @@ export default function LoginPage() {
         router.push("/");
       } else {
         if (!fullName.trim()) throw new Error("Full name is required");
-        const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+        const res = await fetch(`${getApiBase()}/api/v1/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
