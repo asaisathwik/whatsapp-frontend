@@ -143,10 +143,8 @@ export default function ConnectWhatsAppPage() {
           loadChatData(primary);
           return;
         }
-        if (primary.qr_code && primary.qr_code.startsWith("data:image")) {
-          setQrCode(primary.qr_code);
-          setQrStatus("QR_READY");
-        }
+        setQrStatus("INITIALIZING");
+        setQrCode(null);
         startQrPolling(primary.id);
       } else {
         setTimeout(() => initWhatsApp(), 2000);
